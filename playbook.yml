@@ -1,0 +1,68 @@
+---
+- name: Ansible Variable Example Playbook
+  hosts: example
+  gather_facts: True
+  tasks:
+
+  - name: Extract device used for mounting /var/log
+    shell:
+      cmd: df -hT | grep '/var/log' | cut -d ' ' -f 1
+    become: true
+    become_user: root
+    register: get_lvm_volume_device
+
+  # - name: Display device where /var/log is mounted
+  #   debug:
+  #     msg: "{{ get_lvm_volume_device.stdout }}"
+
+  - name: Get Facts for LVM
+    become: true
+    become_user: root
+    setup:
+      filter: 'ansible_lvm'
+
+  - name: Display LVM info
+    debug:
+      msg: "{{ansible_lvm}}"
+
+  - name: Determine VG associated with /var/log
+    set_fact:
+      correct_group_name_data: "{{ ansible_lvm.vgs[item] }}"
+      correct_group_name: "{{ item }}"
+    when: item in get_lvm_volume_device.stdout
+    with_items: "{{ ansible_lvm.vgs }}"
+
+  # - name: Determine VL associated with VG
+    # set_fact:
+    #   correct_local_volume_name: None
+
+  # - name: Group Name and Volume Name
+  #   debug:
+  #     msg: "{{correct_group_name}}"
+
+  - name: Calculate max size of VG and current size
+    set_fact:
+      lvm_max_size: correct_group_name_data.size_g
+      lvm_current_size: "{{ correct_group_name_data.size_g|float - correct_group_name_data.free_g|float }}"
+
+  - name: Check if it is possible to double size of LVM
+    set_fact:
+      can_double_size: "{{ (lvm_max_size|float - 2*lvm_current_size|float) > 0 }}"
+
+  - name: Display if it is possible to double size of LVM
+    debug:
+      msg: "{{can_double_size}}"
+
+  # - name: Can double size of LVM
+  #   lvol:
+  #     vg: {{correct_group_name}}
+  #     lv: test
+  #     size: {{ 2*lvm_current_size|float }}
+  #   when: "{{can_double_size}}" == true
+
+  # - name: Take all space available without doubling size of LVM
+  #   lvol:
+  #     vg: {{correct_group_name}}
+  #     lv: test
+  #     size: {{ lvm_max_size|float }}
+  #   when: "{{can_double_size}}" == false
