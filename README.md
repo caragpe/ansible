@@ -19,4 +19,4 @@ In this file:
 Assuming that the ssh user is `vagrant` and the ssh keys are already loaded in the ssh-agent, or setup in the ansible hosts file: 
 ```
 ansible-playbook playbook.yml -u vagrant
-```v
+```
